@@ -1,0 +1,50 @@
+Bootstrap: docker
+From: lightseekorg/tokenspeed-runner:cu130-torch-2.11.0
+
+%files
+    # Equivalent to: COPY . /workspace
+    . /workspace
+
+%environment
+    # Equivalent to: ENV PIP_BREAK_SYSTEM_PACKAGES=1
+    export PIP_BREAK_SYSTEM_PACKAGES=1
+    export CUDA_HOME=/usr/local/cuda
+    export TORCH_CUDA_ARCH_LIST=9.0
+    export MAX_JOBS=64
+    export VENV=/opt/venv
+    export PATH=${VENV}/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    export LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/local/nvidia/lib:/usr/local/nvidia/lib64
+
+%post
+    export CUDA_HOME=/usr/local/cuda
+    export TORCH_CUDA_ARCH_LIST=9.0
+    export MAX_JOBS=64
+    export VENV=/opt/venv
+    export PATH=${VENV}/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    export LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/local/nvidia/lib:/usr/local/nvidia/lib64
+
+    # Make the environment variable available during the build phase as well
+    export PIP_BREAK_SYSTEM_PACKAGES=1
+    
+    # Equivalent to: WORKDIR /workspace
+    cd /workspace
+
+    # Install system dependencies
+    apt-get update && apt-get install -y --no-install-recommends \
+        libssl-dev \
+        libopenmpi-dev
+    rm -rf /var/lib/apt/lists/*
+
+    # Install Python packages with environment variables
+    export FLASHINFER_CUDA_ARCH_LIST="9.0a"
+    export TOKENSPEED_KERNEL_BACKEND=cuda
+    
+    pip install tokenspeed-kernel/python/ --no-build-isolation
+    pip install tokenspeed-scheduler/
+    pip install "./python" --no-build-isolation
+
+%runscript
+    # Equivalent to: CMD ["/bin/bash"]
+    # We navigate to the workspace first to mimic WORKDIR behavior at runtime
+    cd /workspace
+    exec /bin/bash "$@"
